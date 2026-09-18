@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>恋狗窝 · 网页版</title>
+<script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.0/cloudbase.full.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; }
@@ -29,9 +30,8 @@
   }
   .page { flex: 1; overflow-y: auto; padding-bottom: 76px; animation: rise .35s ease-out both; }
   @keyframes rise { from { opacity:0; transform: translateY(14px);} to { opacity:1; transform:none;} }
-  @keyframes pop { from { transform: scale(.92); opacity:0;} to { transform: scale(1); opacity:1;} }
+  .hidden { display:none !important; }
 
-  /* 顶栏 */
   .topbar {
     padding: 18px 18px 6px;
     font-size: 17px; font-weight: bold; color:#333;
@@ -43,42 +43,32 @@
     border-radius: 20px; padding: 4px 12px; cursor:pointer;
     box-shadow: 0 2px 8px rgba(255,107,129,.25);
   }
-
-  /* 卡片 */
   .card {
     background:#fff; border-radius:16px; margin: 0 14px 14px;
     padding: 16px; box-shadow: 0 4px 16px rgba(255,107,129,.08);
-    transition: transform .15s ease;
+    transition: transform .15s ease; cursor:pointer;
   }
   .card:active { transform: scale(.985); }
   .card-tag { font-size: 12px; color:#ff6b81; margin-bottom: 8px; }
   .card-title { font-size: 16px; font-weight: bold; color:#333; line-height:1.5; }
   .card-sub { font-size: 13px; color:#999; margin-top: 6px; line-height:1.6; }
-
   .btn {
     display:inline-block; border:none; cursor:pointer;
     background:#ff6b81; color:#fff; font-size:14px; font-weight:bold;
     border-radius: 22px; padding: 9px 22px;
     box-shadow: 0 4px 12px rgba(255,107,129,.35);
-    transition: transform .15s ease;
+    transition: transform .15s ease; font-family: inherit;
   }
   .btn:active { transform: scale(.94); }
   .btn.ghost { background:#f4f5f7; color:#909399; box-shadow:none; }
   .btn.big { width: 100%; padding: 12px; font-size: 15px; }
-
   input, textarea {
     width: 100%; border:none; outline:none; background:#f7f8fa;
     border-radius: 12px; padding: 12px 14px; font-size: 14px; color:#333;
     font-family: inherit;
   }
   textarea { resize: none; min-height: 90px; }
-  input[type=date] { color:#333; }
-
-  /* 首页 */
-  .hero {
-    display:flex; flex-direction:column; align-items:center;
-    padding: 8px 0 4px; text-align:center;
-  }
+  .hero { display:flex; flex-direction:column; align-items:center; padding: 8px 0 4px; text-align:center; }
   .hero .dog { font-size: 54px; }
   .hero .days { font-size: 30px; font-weight: bold; color:#ff6b81; }
   .hero .days small { font-size: 13px; color:#999; font-weight: normal; }
@@ -90,17 +80,11 @@
   .quick div { flex:1; text-align:center; cursor:pointer; font-size: 13px; color:#333; }
   .quick div:active { opacity:.6; }
   .quick .e { font-size: 26px; display:block; margin-bottom: 4px; }
-
-  /* 空状态 */
   .empty { text-align:center; padding: 30px 0 10px; color:#bbb; font-size: 13px; }
-
-  /* 动态 */
   .feed-item { border-bottom: 1px solid #fff2f4; padding: 12px 2px; }
   .feed-item:last-child { border-bottom: none; }
   .feed-time { font-size: 11px; color:#c4c7cf; margin-bottom: 4px; }
   .feed-content { font-size: 14px; color:#333; line-height:1.6; word-break:break-all; }
-
-  /* 回忆时间线 */
   .stats {
     display:flex; background: linear-gradient(135deg,#ff6b81,#ff9a9e);
     border-radius: 16px; margin: 4px 14px 12px; padding: 14px 4px;
@@ -121,8 +105,7 @@
   .tl-date { font-size: 11px; color:#c4c7cf; }
   .tl-card { background:#fff; border-radius: 12px; padding: 12px 14px; margin-top: 4px; box-shadow: 0 2px 10px rgba(255,107,129,.07); }
   .tl-title { font-size: 14px; font-weight: bold; color:#333; }
-
-  /* 清单 */
+  .tl-sub { font-size: 12px; color:#999; margin-top: 4px; }
   .check-item {
     display:flex; align-items:center; background:#fff; border-radius: 12px;
     margin: 0 14px 10px; padding: 13px 14px;
@@ -142,16 +125,13 @@
     position: fixed; bottom: 62px; left:50%; transform: translateX(-50%);
     width: 100%; max-width: 420px; background:#fff;
     display:flex; gap:10px; padding: 10px 14px; box-shadow: 0 -4px 14px rgba(0,0,0,.05);
+    z-index: 40;
   }
   .addbar input { flex:1; }
-
-  /* 计划 */
   .plan-item { background:#fff; border-radius: 14px; margin: 0 14px 12px; padding: 14px; }
   .plan-item .pt { font-size: 15px; font-weight: bold; color:#333; }
   .plan-item .pd { font-size: 13px; color:#999; margin-top: 6px; }
   .plan-actions { margin-top: 10px; display:flex; gap: 10px; }
-
-  /* 我的 */
   .mine-head { display:flex; flex-direction:column; align-items:center; padding: 10px 0 20px; }
   .mine-avatar {
     width: 84px; height: 84px; border-radius: 50%; background:#fff;
@@ -172,8 +152,6 @@
   .menu-item:last-child { border-bottom:none; }
   .menu-item .e { width: 34px; }
   .menu-item .arr { margin-left:auto; color:#e3b2bc; font-size: 20px; }
-
-  /* 底部导航 */
   .tabbar {
     position: fixed; bottom: 0; left:50%; transform: translateX(-50%);
     width: 100%; max-width: 420px; background:#fff;
@@ -186,34 +164,40 @@
   .tabbar div .e { font-size: 22px; display:block; margin-bottom: 2px; filter: grayscale(1) opacity(.6); }
   .tabbar div.on { color:#ff6b81; font-weight: bold; }
   .tabbar div.on .e { filter:none; }
-
-  /* 引导页 */
   .onb { display:flex; flex-direction:column; align-items:center; padding-top: 60px; }
   .onb .dog { font-size: 70px; }
   .onb h1 { font-size: 24px; color:#333; margin: 10px 0 6px; }
   .onb p { font-size: 13px; color:#999; }
   .onb .card { width: calc(100% - 28px); margin-top: 30px; }
   .onb label { display:block; font-size: 12px; color:#999; margin: 14px 0 6px; }
-  .hidden { display:none !important; }
-  .tip-ok { color:#fff; text-align:center; font-size:12px; margin-top:8px; opacity:.9; }
+  .tip-err { background:#fde2e2; color:#c0392b; font-size:12px; border-radius:10px; padding:8px 12px; margin-top:10px; word-break:break-all; }
+  .loading-mask {
+    position: fixed; inset: 0; background: rgba(255,241,244,.75); z-index: 100;
+    display:flex; align-items:center; justify-content:center; font-size: 15px; color:#ff6b81; font-weight: bold;
+  }
 </style>
 </head>
 <body>
 <div id="phone">
+  <div class="loading-mask hidden" id="mask">加载中...</div>
+
   <!-- 引导页 -->
   <div id="v-onb" class="page onb hidden">
     <div class="dog">🐶</div>
     <h1>恋狗窝</h1>
     <p>一个只属于你们两个人的空间 · 网页版</p>
-    <div class="card" style="width:calc(100% - 28px); align-self:center;">
+    <div class="card" style="align-self:center;">
       <label>你的昵称</label>
       <input id="onb-name" placeholder="对方将看到这个昵称">
       <label>你们在一起的日子</label>
       <input id="onb-date" type="date">
+      <label id="join-label" class="hidden">Ta 的邀请码</label>
+      <input id="onb-code" class="hidden" placeholder="6位邀请码" maxlength="6">
       <div style="margin-top:22px">
-        <button class="btn big" onclick="onbDone()">开始使用</button>
+        <button class="btn big" id="onb-btn" onclick="onbDone()">创建我们的空间</button>
       </div>
       <div class="tip-ok" id="onb-code"></div>
+      <div style="text-align:center; margin-top:14px; font-size:12px; color:#ff6b81; cursor:pointer;" id="onb-switch" onclick="switchOnbMode()">已有空间？输入邀请码加入</div>
     </div>
   </div>
 
@@ -222,19 +206,19 @@
     <div class="topbar"><span>恋狗窝</span><span class="code-pill" onclick="copyCode()" title="点击复制邀请码">💌 <span id="tb-code"></span></span></div>
     <div class="hero">
       <div class="dog">🐶</div>
-      <div class="days"><span id="h-days">0</span> <small>在一起的天数</small></div>
+      <div class="days"><span id="h-days">0</span> <small>在一起的天数(点我的可修改)</small></div>
     </div>
     <div class="quick">
-      <div onclick="go('check')"><span class="e">📅</span>约会计划</div>
+      <div onclick="go('plans')"><span class="e">📅</span>约会计划</div>
       <div onclick="go('check')"><span class="e">✅</span>情侣清单</div>
-      <div onclick="go('memories')"><span class="e">💗</span>纪念日</div>
+      <div onclick="go('memories')"><span class="e">💗</span>回忆</div>
     </div>
-    <div class="card" id="h-tip-card">
+    <div class="card" id="h-tip-card" onclick="go('check')">
       <div class="card-tag">💡 今日份小事</div>
       <div class="card-title" id="h-tip-title"></div>
       <div style="margin-top:12px; display:flex; gap:10px;">
         <button class="btn ghost" onclick="event.stopPropagation();refreshTip()">换一个</button>
-        <button class="btn" onclick="go('check')">去打卡 →</button>
+        <button class="btn" onclick="event.stopPropagation();go('check')">去打卡 →</button>
       </div>
     </div>
     <div class="card" id="h-plan-card" onclick="go('plans')">
@@ -279,7 +263,7 @@
       <div class="mine-name" id="m-name"></div>
     </div>
     <div class="field"><label>昵称</label><input id="f-nick"></div>
-    <div class="field"><label>在一起从</label><input id="f-start" type="date"></div>
+    <div class="field"><label>在一起从</label><input id="f-start" type="date" onchange="saveStartDate(this.value)"></div>
     <div class="field"><label>手机号</label><input id="f-phone" type="tel" maxlength="11" placeholder="点击绑定手机号"></div>
     <div style="margin:4px 14px 14px; text-align:right;">
       <button class="btn" onclick="saveMine()">保存资料</button>
@@ -287,9 +271,8 @@
     <div class="menu">
       <div class="menu-item" onclick="copyCode()"><span class="e">💌</span>我的邀请码 <span class="arr">›</span></div>
       <div class="menu-item" onclick="exportData()"><span class="e">📦</span>导出数据(JSON)<span class="arr">›</span></div>
-      <div class="menu-item" onclick="clearAll()"><span class="e">🧹</span>清除全部数据<span class="arr">›</span></div>
     </div>
-    <div style="text-align:center; font-size:11px; color:#d8aeb6; padding: 6px 0 20px;">恋狗窝 · 网页体验版(数据存于本浏览器)</div>
+    <div style="text-align:center; font-size:11px; color:#d8aeb6; padding: 6px 0 20px;">恋狗窝 · 网页版(云端同步：网页与小程序数据互通)</div>
   </div>
 
   <!-- 清单页 -->
@@ -317,7 +300,7 @@
       <input id="p-title" placeholder="比如:一起去看海" style="margin-bottom:10px;">
       <input id="p-date" type="date" style="margin-bottom:10px;">
       <input id="p-place" placeholder="地点(选填)" style="margin-bottom:10px;">
-      <button class="btn big" onclick="addPlan()">发出提议(网页版单人演示将直接约定)</button>
+      <button class="btn big" onclick="addPlan()">发出提议</button>
     </div>
     <div id="p-list"></div>
   </div>
@@ -331,30 +314,54 @@
 </div>
 
 <script>
-// ============ 数据层(localStorage) ============
-const KEY = 'lgw_v1';
-let store = load();
-function load() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch(e) { return null; }
+// ============ 云端初始化 ============
+const ENV = 'cloud1-d2geutpqt70d99d96';
+let capp, auth, cdb, cmd;
+let webOpenid = localStorage.getItem('lgw_web_openid');
+if (!webOpenid) {
+  webOpenid = 'web-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  localStorage.setItem('lgw_web_openid', webOpenid);
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(store)); }
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+let user = null;   // 用户文档(含 _id, coupleId, nickname, avatar, phone)
+let couple = null; // 空间文档(inviteCode, startDate, partners)
+let partnerJoined = false;
+
+async function cloudInit() {
+  capp = cloudbase.init({ env: ENV });
+  auth = capp.auth({ persistence: 'local' });
+  if (!auth.hasLoginState()) {
+    await auth.signInAnonymously();
+  }
+  cdb = capp.database();
+  cmd = cdb.command;
+}
+async function callFn(type, extra) {
+  const res = await capp.callFunction({
+    name: 'nestFunctions',
+    data: Object.assign({ type: type, webOpenid: webOpenid }, extra || {})
+  });
+  return res.result;
+}
+function showMask(t) { const m = document.getElementById('mask'); m.textContent = t || '加载中...'; m.classList.remove('hidden'); }
+function hideMask() { document.getElementById('mask').classList.add('hidden'); }
+function errBox(msg) { alert(msg); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c = ''; for (let i=0;i<6;i++) c += chars[Math.floor(Math.random()*chars.length)];
+  let c = ''; for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
   return c;
 }
 function fmt(ts) {
   const d = new Date(ts);
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 function daysSince(ts) {
-  const a = new Date(ts); a.setHours(0,0,0,0);
-  const b = new Date(); b.setHours(0,0,0,0);
+  const a = new Date(ts); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
   return Math.max(Math.round((b - a) / 86400000), 1);
 }
+function esc(s) { return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-// ============ 模板 ============
 const TEMPLATE = ['一起看一场日出','一起看一次日落','一起去看海','一起去看雪','一起爬山看云海','一起露营看星星','一起放一次烟花','一起去看一场演唱会','一起看一场电影首映','一起通宵看完一部剧','一起逛深夜的便利店','一起做一顿完整的晚餐','一起烤一次蛋糕','一起吃自助餐吃到扶墙出','一起打卡对方家乡的美食','一起吃一次路边摊','一起逛菜市场买菜','一起养一只宠物','一起种一盆植物并养活它','一起拼完一幅1000片拼图','一起玩一次密室逃脱','一起玩一次剧本杀','一起在游乐园坐摩天轮','一起坐一次过山车','一起手拉手进一次鬼屋','一起逛一次美术馆','一起逛一次博物馆','一起听一场音乐会','一起看一次话剧','一起看一次流星雨','一起骑车穿过一座城市','一起坐一次凌晨的火车','一起坐一次热气球','一起去看一次极光','一起泡一次温泉','一起在海边捡贝壳','一起放一次风筝','一起划一次船','一起在冬天吃热乎乎的糖炒栗子','一起淋一场雨然后马上回家','一起打一场雪仗','一起堆一个雪人','一起给对方做一次早餐','一起坚持运动21天','一起完成一次徒步','一起拍一卷胶片','一起拍一次情侣写真','一起录一段搞怪视频','一起给未来的自己写信','一起存一笔梦想基金','一起完成一次说走就走的旅行','一起去对方的城市旅行','一起回对方的母校看看','一起见彼此的好朋友','一起回家过一次年','一起布置一个共同的家','一起逛宜家假装在自己的家','一起跨年倒数','一起过一次只属于我们的情人节','一起教会对方一项新技能'];
 
 // ============ 路由 ============
@@ -365,9 +372,9 @@ function go(v) {
   document.querySelectorAll('.tabbar div').forEach(t => {
     t.classList.toggle('on', t.dataset.v === v);
   });
-  const tabPages = { home:1, memories:1, mine:1 };
+  const tabPages = { home: 1, memories: 1, mine: 1 };
   document.getElementById('tabbar').style.display = tabPages[v] ? 'flex' : 'none';
-  window.scrollTo(0,0);
+  window.scrollTo(0, 0);
   if (v === 'home') renderHome();
   if (v === 'memories') renderMemories();
   if (v === 'mine') renderMine();
@@ -375,72 +382,174 @@ function go(v) {
   if (v === 'plans') renderPlans();
 }
 
+// ============ 启动 ============
+(async function boot() {
+  showMask('连接云端...');
+  try {
+    await cloudInit();
+    const r = await callFn('getUserInfo');
+    user = (r && r.userData) || null;
+    if (!user) throw new Error('用户初始化失败');
+    if (user.coupleId) {
+      const ci = await callFn('getCoupleInfo');
+      couple = (ci && ci.data && ci.data.couple) || null;
+      partnerJoined = !!(couple && couple.partners && couple.partners.length >= 2);
+      hideMask();
+      go('home');
+    } else {
+      hideMask();
+      go('onb');
+    }
+  } catch (e) {
+    hideMask();
+    document.getElementById('v-onb').classList.remove('hidden');
+    const box = document.getElementById('onb-code');
+    box.classList.remove('tip-ok');
+    box.classList.add('tip-err');
+    box.id = 'onb-code';
+    box.textContent = '云端连接失败：' + ((e && (e.errMsg || e.message)) || '未知错误') + '。若是首次使用,请先在云开发控制台开启"匿名登录"并将 ' + location.hostname + ' 加入 Web 安全域名。';
+    document.getElementById('onb-btn').onclick = function(){ location.reload(); };
+    document.getElementById('onb-btn').textContent = '重试';
+  }
+})();
+
 // ============ 引导 ============
-function onbDone() {
+let onbMode = 'create';
+function switchOnbMode() {
+  onbMode = onbMode === 'create' ? 'join' : 'create';
+  document.getElementById('join-label').classList.toggle('hidden', onbMode === 'create');
+  document.getElementById('onb-code').classList.toggle('hidden', onbMode === 'create');
+  document.getElementById('onb-btn').textContent = onbMode === 'create' ? '创建我们的空间' : '输入邀请码加入';
+  document.getElementById('onb-switch').textContent = onbMode === 'create' ? '已有空间？输入邀请码加入' : '还没创建空间？去创建';
+}
+async function onbDone() {
   const name = document.getElementById('onb-name').value.trim();
   const date = document.getElementById('onb-date').value;
+  const code = document.getElementById('onb-code').value.trim().toUpperCase();
   if (!name) return alert('先给自己起个昵称吧');
-  if (!date) return alert('请选择你们在一起的日子');
-  store.profile = { nickname: name, avatar: '', phone: '', startDate: date };
-  store.inviteCode = genCode();
-  save();
-  document.getElementById('onb-code').textContent = '💌 你的邀请码:' + store.inviteCode + '(已复制,可在"我的"页再次复制)';
-  try { navigator.clipboard.writeText(store.inviteCode); } catch(e) {}
-  setTimeout(() => go('home'), 1200);
+  if (onbMode === 'create' && !date) return alert('请选择你们在一起的日子');
+  if (onbMode === 'join' && !code) return alert('请输入 Ta 的邀请码');
+  showMask(onbMode === 'create' ? '创建空间...' : '加入空间...');
+  try {
+    if (onbMode === 'create') {
+      const r = await callFn('createCouple', { startDate: date });
+      if (!r || !r.type) throw new Error((r && r.msg) || '创建失败');
+    } else {
+      const r = await callFn('joinCouple', { inviteCode: code });
+      if (!r || !r.type) throw new Error((r && r.msg) || '加入失败');
+    }
+    // 更新昵称
+    const ur = await callFn('getUserInfo');
+    if (ur && ur.userData && ur.userData._id) {
+      user = ur.userData;
+      await callFn('coupleUpdateDoc', { collection: 'users', docId: user._id, data: { nickname: name } });
+      user.nickname = name;
+    }
+    const cr = await callFn('getCoupleInfo');
+    couple = (cr && cr.data && cr.data.couple) || null;
+    partnerJoined = !!(couple && couple.partners && couple.partners.length >= 2);
+    hideMask();
+    go('home');
+  } catch (e) {
+    hideMask();
+    errBox((e && (e.errMsg || e.message)) || '操作失败');
+  }
 }
 
 // ============ 首页 ============
-function renderHome() {
-  document.getElementById('tb-code').textContent = store.inviteCode || '';
-  const start = new Date(store.profile.startDate).getTime();
+let tipItem = null, tipPool = [];
+async function renderHome() {
+  document.getElementById('tb-code').textContent = couple ? (couple.inviteCode || '') : '';
+  const start = new Date(couple.startDate).getTime();
   document.getElementById('h-days').textContent = daysSince(start);
-  // 今日份小事
-  const undone = store.checklist.filter(i => !i.done);
+  await loadTip();
+  await loadNextPlan();
+  await renderFeed();
+}
+async function loadTip() {
   const tipCard = document.getElementById('h-tip-card');
-  if (undone.length) {
-    tipCard.style.display = 'block';
-    if (!window._tip || !undone.find(i => i.id === window._tip.id)) {
-      window._tip = undone[Math.floor(Math.random() * undone.length)];
+  try {
+    const res = await cdb.collection('checklistItem').where({
+      coupleId: user.coupleId, done: false
+    }).limit(20).get();
+    tipPool = res.data || [];
+    if (tipPool.length) {
+      if (!tipItem || !tipPool.find(i => i._id === tipItem._id)) {
+        tipItem = tipPool[Math.floor(Math.random() * tipPool.length)];
+      }
+      tipCard.style.display = 'block';
+      document.getElementById('h-tip-title').textContent = '「' + tipItem.title + '」';
+    } else {
+      tipCard.style.display = 'block';
+      document.getElementById('h-tip-title').textContent = store_checklistEmptyOrDone();
     }
-    document.getElementById('h-tip-title').textContent = '「' + window._tip.title + '」';
-  } else if (store.checklist.length) {
-    tipCard.style.display = 'block';
-    document.getElementById('h-tip-title').textContent = '全部小事都打卡完成啦 🎉';
-  } else {
-    tipCard.style.display = 'block';
-    document.getElementById('h-tip-title').textContent = '从 100 件小事里,挑一件今天做';
+  } catch (e) {
+    tipCard.style.display = 'none';
   }
-  // 下一场约会
-  const planCard = document.getElementById('h-plan-card');
-  const next = store.plans.filter(p => p.status === 'accepted').sort((a,b) => a.date < b.date ? -1 : 1)[0];
-  if (next) {
-    planCard.style.display = 'block';
-    document.getElementById('h-plan-title').textContent = '💗 距离「' + next.title + '」还有 ' + Math.max(Math.ceil((new Date(next.date) - new Date())/86400000), 0) + ' 天';
-    document.getElementById('h-plan-sub').textContent = fmt(new Date(next.date)) + (next.place ? ' · ' + next.place : '');
-  } else {
-    planCard.style.display = 'block';
-    document.getElementById('h-plan-title').textContent = '💌 还没有约定好的约会';
-    document.getElementById('h-plan-sub').textContent = '这周末,给 Ta 一个突然袭击?';
-  }
-  renderFeed();
+}
+function store_checklistEmptyOrDone() {
+  return '去清单看看,或添加一件今天做的小事';
 }
 function refreshTip() {
-  window._tip = null;
-  renderHome();
+  if (!tipPool.length) return;
+  let next = tipPool[Math.floor(Math.random() * tipPool.length)];
+  if (tipItem && next._id === tipItem._id && tipPool.length > 1) {
+    next = tipPool[(tipPool.indexOf(next) + 1) % tipPool.length];
+  }
+  tipItem = next;
+  document.getElementById('h-tip-title').textContent = '「' + tipItem.title + '」';
 }
-function postFeed() {
+async function loadNextPlan() {
+  const planCard = document.getElementById('h-plan-card');
+  try {
+    const res = await cdb.collection('datePlan').where({
+      coupleId: user.coupleId,
+      status: cmd.in(['proposed', 'accepted'])
+    }).orderBy('date', 'asc').limit(1).get();
+    const list = res.data || [];
+    if (list.length) {
+      const p = list[0];
+      const days = Math.max(Math.ceil((new Date(p.date).getTime() - Date.now()) / 86400000), 0);
+      planCard.style.display = 'block';
+      document.getElementById('h-plan-title').textContent = (p.status === 'accepted' ? '💗 距离「' + p.title + '」还有 ' + days + ' 天' : '💌 「' + p.title + '」等你确认');
+      document.getElementById('h-plan-sub').textContent = fmt(new Date(p.date)) + (p.place ? ' · ' + p.place : '');
+    } else {
+      planCard.style.display = 'block';
+      document.getElementById('h-plan-title').textContent = '💌 还没有约定好的约会';
+      document.getElementById('h-plan-sub').textContent = '这周末,给 Ta 一个突然袭击?';
+    }
+  } catch (e) {
+    planCard.style.display = 'none';
+  }
+}
+async function postFeed() {
   const input = document.getElementById('feed-input');
   const content = input.value.trim();
   if (!content) return alert('先写点什么吧');
-  store.articles.unshift({ id: uid(), content, time: Date.now() });
-  save(); input.value = '';
-  renderFeed();
+  showMask('发表中...');
+  try {
+    await callFn('coupleAddDoc', { collection: 'article', doc: { content: content, files: [] } });
+    input.value = '';
+    hideMask();
+    await renderFeed();
+  } catch (e) {
+    hideMask();
+    alert('发表失败：' + ((e && (e.errMsg || e.message)) || '未知'));
+  }
 }
-function renderFeed() {
+async function renderFeed() {
   const el = document.getElementById('h-feed-list');
-  el.innerHTML = store.articles.map(a =>
-    '<div class="feed-item"><div class="feed-time">' + fmt(a.time) + '</div><div class="feed-content">' + esc(a.content) + '</div></div>'
-  ).join('') || '<div class="empty">还没有第一条动态,从今天的日落开始</div>';
+  try {
+    const res = await cdb.collection('article').where({
+      coupleId: user.coupleId
+    }).orderBy('create_time', 'desc').limit(10).get();
+    const list = res.data || [];
+    el.innerHTML = list.map(a =>
+      '<div class="feed-item"><div class="feed-time">' + fmt(new Date(a.create_time)) + '</div><div class="feed-content">' + esc(a.content) + '</div></div>'
+    ).join('') || '<div class="empty">还没有第一条动态,从今天的日落开始</div>';
+  } catch (e) {
+    el.innerHTML = '<div class="empty">动态加载失败</div>';
+  }
 }
 
 // ============ 回忆 ============
@@ -450,84 +559,154 @@ function memFilter(f, el) {
   document.querySelectorAll('#mem-chips .chip').forEach(c => c.classList.toggle('on', c.dataset.f === f));
   renderMemories();
 }
-function renderMemories() {
-  const start = new Date(store.profile.startDate).getTime();
+async function renderMemories() {
+  const listEl = document.getElementById('mem-list');
+  listEl.innerHTML = '<div class="empty">加载中...</div>';
+  const start = new Date(couple.startDate).getTime();
   document.getElementById('s-days').textContent = daysSince(start);
-  document.getElementById('s-check').textContent = store.checklist.filter(i => i.done).length;
-  document.getElementById('s-plan').textContent = store.plans.filter(p => p.status === 'done').length;
-  document.getElementById('s-post').textContent = store.articles.length;
   let events = [{
     type: 'love', time: start, date: fmt(start),
     title: '🐶 我们在一起啦', sub: '故事从这里开始'
   }];
-  store.checklist.filter(i => i.done).forEach(i => {
-    events.push({ type:'check', time: i.doneTime, date: fmt(i.doneTime), title: '✅ 打卡了「' + i.title + '」', sub: '' });
-  });
-  store.plans.filter(p => p.status === 'done').forEach(p => {
-    events.push({ type:'plan', time: p.doneTime, date: fmt(p.doneTime), title: '💗 完成了约会「' + p.title + '」', sub: p.place || '' });
-  });
-  store.articles.forEach(a => {
-    events.push({ type:'article', time: a.time, date: fmt(a.time), title: '📝 写下了一条动态', sub: a.content.slice(0, 40) });
-  });
-  events.sort((a,b) => b.time - a.time);
+  try {
+    const checks = await cdb.collection('checklistItem').where({ coupleId: user.coupleId, done: true }).limit(20).get();
+    (checks.data || []).forEach(i => {
+      const t = i.done_time ? new Date(i.done_time).getTime() : Date.now();
+      events.push({ type: 'check', time: t, date: fmt(t), title: '✅ 打卡了「' + i.title + '」', sub: '' });
+    });
+    const plans = await cdb.collection('datePlan').where({ coupleId: user.coupleId, status: 'done' }).limit(20).get();
+    (plans.data || []).forEach(p => {
+      const t = p.done_time ? new Date(p.done_time).getTime() : new Date(p.date).getTime();
+      events.push({ type: 'plan', time: t, date: fmt(t), title: '💗 完成了约会「' + p.title + '」', sub: p.place || '' });
+    });
+    const arts = await cdb.collection('article').where({ coupleId: user.coupleId }).limit(20).get();
+    (arts.data || []).forEach(a => {
+      const t = new Date(a.create_time).getTime();
+      events.push({ type: 'article', time: t, date: fmt(t), title: '📝 写下了一条动态', sub: (a.content || '').slice(0, 40) });
+    });
+  } catch (e) {
+    listEl.innerHTML = '<div class="empty">加载失败:' + esc((e && e.message) || '') + '</div>';
+    return;
+  }
+  events.sort((a, b) => b.time - a.time);
   const visible = memFilterKey === 'all' ? events : events.filter(e => e.type === memFilterKey);
-  document.getElementById('mem-list').innerHTML = visible.map(e =>
+  document.getElementById('s-check').textContent = store_countDone();
+  document.getElementById('s-plan').textContent = (await (async () => {
+    const r = await cdb.collection('datePlan').where({ coupleId: user.coupleId, status: 'done' }).count();
+    return r.total;
+  })());
+  document.getElementById('s-post').textContent = store.articles ? store.articles.length : (await cdb.collection('article').where({ coupleId: user.coupleId }).count()).total;
+  listEl.innerHTML = visible.map(e =>
     '<div class="tl-item"><div class="tl-dot"></div><div class="tl-date">' + e.date + '</div><div class="tl-card"><div class="tl-title">' + e.title + '</div>' + (e.sub ? '<div class="tl-sub">' + esc(e.sub) + '</div>' : '') + '</div></div>'
   ).join('') + '<div class="empty">── 已经翻到最早的回忆啦 ──</div>';
   document.getElementById('mem-empty').style.display = visible.length ? 'none' : 'block';
 }
+async function store_countDone() {
+  const r = await cdb.collection('checklistItem').where({ coupleId: user.coupleId, done: true }).count();
+  return r.total;
+}
 
 // ============ 清单 ============
-function renderCheck() {
-  const undone = store.checklist.filter(i => !i.done);
-  const done = store.checklist.filter(i => i.done).reverse();
-  const items = undone.concat(done);
-  document.getElementById('c-done').textContent = done.length;
-  document.getElementById('c-total').textContent = store.checklist.length;
-  document.getElementById('c-list').innerHTML = items.map(i =>
-    '<div class="check-item ' + (i.done ? 'done' : '') + '"><div class="circle ' + (i.done ? 'on' : '') + '" onclick="toggleCheck(\'' + i.id + '\')">' + (i.done ? '✓' : '') + '</div><div class="ct">' + esc(i.title) + '</div><div class="del" onclick="delCheck(\'' + i.id + '\')">✕</div></div>'
-  ).join('');
-  document.getElementById('c-template').style.display = store.checklist.length ? 'none' : 'block';
+let checkCache = [];
+async function renderCheck() {
+  document.getElementById('c-list').innerHTML = '<div class="empty">加载中...</div>';
+  try {
+    let all = [];
+    let getBatch = async (skip) => {
+      const res = await cdb.collection('checklistItem').where({
+        coupleId: user.coupleId
+      }).orderBy('create_time', 'asc').skip(skip).limit(20).get();
+      all = all.concat(res.data || []);
+      if ((res.data || []).length === 20) return getBatch(skip + 20);
+    };
+    await getBatch(0);
+    checkCache = all;
+    const undone = all.filter(i => !i.done);
+    const done = all.filter(i => i.done).reverse();
+    const items = undone.concat(done);
+    document.getElementById('c-done').textContent = done.length;
+    document.getElementById('c-total').textContent = all.length;
+    document.getElementById('c-list').innerHTML = items.map(i =>
+      '<div class="check-item ' + (i.done ? 'done' : '') + '"><div class="circle ' + (i.done ? 'on' : '') + '" onclick="toggleCheck(\'' + i._id + '\')">' + (i.done ? '✓' : '') + '</div><div class="ct">' + esc(i.title) + '</div><div class="del" onclick="delCheck(\'' + i._id + '\')">✕</div></div>'
+    ).join('');
+    document.getElementById('c-template').style.display = all.length ? 'none' : 'block';
+  } catch (e) {
+    document.getElementById('c-list').innerHTML = '<div class="empty">加载失败:' + esc((e && e.message) || '') + '</div>';
+  }
 }
 function addCheck() {
   const input = document.getElementById('c-new');
   const title = input.value.trim();
   if (!title) return alert('先写下一件想一起做的事吧');
-  store.checklist.push({ id: uid(), title, done: false });
-  save(); input.value = ''; renderCheck();
+  showMask('添加中...');
+  callFn('coupleAddDoc', { collection: 'checklistItem', doc: { title: title, done: false } }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '添加失败');
+    input.value = '';
+    renderCheck();
+  }).catch(e => { hideMask(); alert('添加失败'); });
 }
 function toggleCheck(id) {
-  const item = store.checklist.find(i => i.id === id);
-  if (item.done) { item.done = false; item.doneTime = null; }
-  else { item.done = true; item.doneTime = Date.now(); }
-  save(); renderCheck();
+  const item = checkCache.find(i => i._id === id);
+  const nextDone = !item.done;
+  showMask(nextDone ? '打卡中...' : '操作中...');
+  callFn('coupleUpdateDoc', { collection: 'checklistItem', docId: id, data: { done: nextDone } }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '操作失败');
+    if (nextDone) item.done = true; else item.done = false;
+    renderCheck();
+  }).catch(e => { hideMask(); alert('操作失败'); });
 }
 function delCheck(id) {
   if (!confirm('删除这件小事吗?删除后无法恢复')) return;
-  store.checklist = store.checklist.filter(i => i.id !== id);
-  save(); renderCheck();
+  showMask('删除中...');
+  callFn('coupleRemoveDoc', { collection: 'checklistItem', docId: id }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '删除失败');
+    renderCheck();
+  }).catch(e => { hideMask(); alert('删除失败'); });
 }
-function importTemplate() {
+async function importTemplate() {
   const existing = {};
-  store.checklist.forEach(i => existing[i.title] = true);
-  let n = 0;
-  TEMPLATE.forEach(t => {
-    if (!existing[t]) { store.checklist.push({ id: uid(), title: t, done: false }); n++; }
-  });
-  save(); renderCheck();
-  alert('已导入 ' + n + ' 件小事,开始打卡吧!');
+  checkCache.forEach(i => existing[i.title] = true);
+  const titles = TEMPLATE.filter(t => !existing[t]);
+  if (!titles.length) return alert('模板心愿都已添加过了');
+  showMask('导入中... 0/' + titles.length);
+  try {
+    const r = await callFn('coupleAddDoc', {
+      collection: 'checklistItem',
+      docs: titles.map(t => ({ title: t, done: false }))
+    });
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '导入失败');
+    alert('已导入 ' + titles.length + ' 件小事,开始打卡吧!');
+    renderCheck();
+  } catch (e) {
+    hideMask();
+    alert('导入失败:' + ((e && (e.errMsg || e.message)) || ''));
+  }
 }
 
 // ============ 计划 ============
-function renderPlans() {
-  const order = { accepted: 0, done: 1 };
-  const list = store.plans.slice().sort((a,b) => (order[a.status] - order[b.status]) || (a.date < b.date ? -1 : 1));
-  document.getElementById('p-list').innerHTML = list.map(p => {
-    let actions = '';
-    if (p.status === 'accepted') actions = '<div class="plan-actions"><button class="btn" onclick="donePlan(\'' + p.id + '\')">标记完成</button></div>';
-    if (p.status === 'done') actions = '<div class="pd">💗 完成于 ' + fmt(p.doneTime) + '</div>';
-    return '<div class="plan-item"><div class="pt">' + esc(p.title) + '</div><div class="pd">' + p.date + (p.place ? ' · ' + esc(p.place) : '') + (p.status === 'accepted' ? ' · 已约定' : '') + '</div>' + actions + '</div>';
-  }).join('') || '<div class="empty">💌 还没有约定,发起一次约会吧</div>';
+async function renderPlans() {
+  const listEl = document.getElementById('p-list');
+  listEl.innerHTML = '<div class="empty">加载中...</div>';
+  try {
+    const res = await cdb.collection('datePlan').where({
+      coupleId: user.coupleId
+    }).limit(50).get();
+    const order = { accepted: 0, done: 1, proposed: 2 };
+    const list = (res.data || []).sort((a, b) => (order[a.status] - order[b.status]) || (a.date < b.date ? -1 : 1));
+    listEl.innerHTML = list.map(p => {
+      const dateStr = p.date ? fmt(new Date(p.date)) : '';
+      let actions = '';
+      if (p.status === 'accepted') actions = '<div class="plan-actions"><button class="btn" onclick="donePlan(\'' + p._id + '\')">标记完成</button></div>';
+      if (p.status === 'done') actions = '<div class="pd">💗 完成于 ' + fmt(new Date(p.done_time)) + '</div>';
+      return '<div class="plan-item"><div class="pt">' + esc(p.title) + '</div><div class="pd">' + dateStr + (p.place ? ' · ' + esc(p.place) : '') + (p.status === 'accepted' ? ' · 已约定' : '') + '</div>' + actions + '</div>';
+    }).join('') || '<div class="empty">💌 还没有约定,发起一次约会吧</div>';
+  } catch (e) {
+    listEl.innerHTML = '<div class="empty">加载失败</div>';
+  }
 }
 function addPlan() {
   const title = document.getElementById('p-title').value.trim();
@@ -535,66 +714,99 @@ function addPlan() {
   const place = document.getElementById('p-place').value.trim();
   if (!title) return alert('给这次约会起个名字吧');
   if (!date) return alert('请选择约会日期');
-  store.plans.push({ id: uid(), title, date, place, status: 'accepted' });
-  save(); renderPlans();
+  showMask('发起中...');
+  callFn('coupleAddDoc', { collection: 'datePlan', doc: {
+    title: title, date: new Date(date), place: place, status: 'accepted'
+  } }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '发起失败');
+    document.getElementById('p-title').value = '';
+    document.getElementById('p-date').value = '';
+    document.getElementById('p-place').value = '';
+    renderPlans();
+  }).catch(e => { hideMask(); alert('发起失败'); });
 }
 function donePlan(id) {
-  const p = store.plans.find(x => x.id === id);
-  p.status = 'done'; p.doneTime = Date.now();
-  save(); renderPlans();
+  showMask('处理中...');
+  callFn('coupleUpdateDoc', { collection: 'datePlan', docId: id, data: { status: 'done', done_time: new Date() } }).then(r => {
+    hideMask();
+    renderPlans();
+  }).catch(e => { hideMask(); alert('操作失败'); });
 }
 
 // ============ 我的 ============
 function renderMine() {
-  document.getElementById('m-name').textContent = store.profile.nickname || '';
-  document.getElementById('m-avatar').innerHTML = store.profile.avatar ? '<img src="' + store.profile.avatar + '">' : '🐶';
-  document.getElementById('f-nick').value = store.profile.nickname || '';
-  document.getElementById('f-start').value = store.profile.startDate || '';
-  document.getElementById('f-phone').value = store.profile.phone || '';
+  document.getElementById('m-name').textContent = user.nickname || '';
+  document.getElementById('m-avatar').innerHTML = user.avatar ? '<img src="' + user.avatar + '">' : '🐶';
+  document.getElementById('f-nick').value = user.nickname || '';
+  document.getElementById('f-start').value = couple && couple.startDate ? fmt(new Date(couple.startDate)) : '';
+  document.getElementById('f-phone').value = user.phone || '';
 }
 function setAvatar(input) {
   const file = input.files[0];
   if (!file) return;
+  if (file.size > 3 * 1024 * 1024) return alert('图片请小于 3MB');
   const reader = new FileReader();
-  reader.onload = e => {
-    store.profile.avatar = e.target.result;
-    save(); renderMine();
+  reader.onload = async e => {
+    const dataUrl = e.target.result;
+    const base64 = dataUrl.split(',')[1];
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    showMask('上传头像...');
+    try {
+      const up = await callFn('uploadImageBase64', { coupleId: user.coupleId, prefix: 'avatar', base64: base64, ext: ext });
+      if (!up || !up.type) throw new Error((up && up.msg) || '上传失败');
+      await callFn('coupleUpdateDoc', { collection: 'users', docId: user._id, data: { avatar: up.fileID } });
+      user.avatar = up.fileID;
+      hideMask();
+      renderMine();
+    } catch (err) {
+      hideMask();
+      alert('头像上传失败:' + ((err && (err.errMsg || err.message)) || ''));
+    }
   };
   reader.readAsDataURL(file);
 }
 function saveMine() {
   const nick = document.getElementById('f-nick').value.trim();
-  const start = document.getElementById('f-start').value;
   const phone = document.getElementById('f-phone').value.trim();
-  if (nick) store.profile.nickname = nick;
-  if (start) store.profile.startDate = start;
-  store.profile.phone = phone;
-  save(); renderMine(); alert('资料已保存');
+  if (!nick) return alert('昵称不能为空');
+  showMask('保存中...');
+  callFn('coupleUpdateDoc', { collection: 'users', docId: user._id, data: { nickname: nick, phone: phone } }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '保存失败');
+    user.nickname = nick; user.phone = phone;
+    renderMine();
+    alert('资料已保存');
+  }).catch(e => { hideMask(); alert('保存失败'); });
+}
+async function saveStartDate(date) {
+  if (!date) return;
+  if (!confirm('把你们在一起的日子改为 ' + date + ' 吗?')) { renderMine(); return; }
+  showMask('更新中...');
+  try {
+    const r = await callFn('updateStartDate', { date: date });
+    hideMask();
+    if (!r || !r.type) { alert((r && r.msg) || '修改失败'); renderMine(); return; }
+    if (couple) couple.startDate = new Date(date).getTime();
+    alert('已更新 ❤️');
+    renderMine();
+  } catch (e) {
+    hideMask();
+    alert('修改失败');
+    renderMine();
+  }
 }
 function copyCode() {
-  const code = store.inviteCode || '';
-  try { navigator.clipboard.writeText(code); } catch(e) {}
-  alert('邀请码已复制:' + code + '\n发给 Ta,在 Ta 的浏览器打开恋狗窝并输入即可(网页体验版数据存本地)');
+  const code = couple ? (couple.inviteCode || '') : '';
+  try { navigator.clipboard.writeText(code); } catch (e) {}
+  alert('邀请码已复制:' + code + '\nTa 在恋狗窝小程序/网页版输入即可绑定同一个空间');
 }
 function exportData() {
-  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ user: user, couple: couple }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'liangouwo-backup.json';
+  a.download = 'liangouwo-account.json';
   a.click();
-}
-function clearAll() {
-  if (!confirm('清除本浏览器的全部恋狗窝数据?')) return;
-  localStorage.removeItem(KEY);
-  location.reload();
-}
-function esc(s) { return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// ============ 启动 ============
-if (!store || !store.profile || !store.profile.startDate) {
-  document.getElementById('v-onb').classList.remove('hidden');
-} else {
-  go('home');
 }
 </script>
 </body>
