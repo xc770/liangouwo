@@ -196,7 +196,7 @@
       <div style="margin-top:22px">
         <button class="btn big" id="onb-btn" onclick="onbDone()">创建我们的空间</button>
       </div>
-      <div class="tip-ok" id="onb-code"></div>
+      <div id="onb-err" class="hidden" style="margin-top:12px;"></div>
       <div style="text-align:center; margin-top:14px; font-size:12px; color:#ff6b81; cursor:pointer;" id="onb-switch" onclick="switchOnbMode()">已有空间？输入邀请码加入</div>
     </div>
   </div>
@@ -336,11 +336,22 @@ async function cloudInit() {
   cmd = cdb.command;
 }
 async function callFn(type, extra) {
-  const res = await capp.callFunction({
-    name: 'nestFunctions',
-    data: Object.assign({ type: type, webOpenid: webOpenid }, extra || {})
-  });
-  return res.result;
+  const payload = Object.assign({ type: type, webOpenid: webOpenid }, extra || {});
+  let lastErr = null;
+  // 20秒超时 + 失败自动重试一次,避免卡死在遮罩上
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await Promise.race([
+        capp.callFunction({ name: 'nestFunctions', data: payload }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('请求超时,请检查网络')), 20000))
+      ]);
+      return res.result;
+    } catch (e) {
+      lastErr = e;
+      if (attempt === 0) await new Promise(r => setTimeout(r, 600));
+    }
+  }
+  throw lastErr;
 }
 function showMask(t) { const m = document.getElementById('mask'); m.textContent = t || '加载中...'; m.classList.remove('hidden'); }
 function hideMask() { document.getElementById('mask').classList.add('hidden'); }
@@ -385,33 +396,42 @@ function go(v) {
 // ============ 启动 ============
 (async function boot() {
   showMask('连接云端...');
-  try {
-    await cloudInit();
-    const r = await callFn('getUserInfo');
-    user = (r && r.userData) || null;
-    if (!user) throw new Error('用户初始化失败');
-    if (user.coupleId) {
-      const ci = await callFn('getCoupleInfo');
-      couple = (ci && ci.data && ci.data.couple) || null;
-      partnerJoined = !!(couple && couple.partners && couple.partners.length >= 2);
-      hideMask();
-      go('home');
-    } else {
-      hideMask();
-      go('onb');
+  let lastErr = null;
+  // 自动重试 3 次,避免首次网络抖动导致卡在引导页
+  for (let i = 0; i < 3; i++) {
+    try {
+      await cloudInit();
+      const r = await callFn('getUserInfo');
+      user = (r && r.userData) || null;
+      if (!user) throw new Error('用户初始化失败');
+      if (user.coupleId) {
+        const ci = await callFn('getCoupleInfo');
+        couple = (ci && ci.data && ci.data.couple) || null;
+        partnerJoined = !!(couple && couple.partners && couple.partners.length >= 2);
+        hideMask();
+        go('home');
+      } else {
+        hideMask();
+        go('onb');
+      }
+      return;
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 1200));
     }
-  } catch (e) {
-    hideMask();
-    document.getElementById('v-onb').classList.remove('hidden');
-    const box = document.getElementById('onb-code');
-    box.classList.remove('tip-ok');
-    box.classList.add('tip-err');
-    box.id = 'onb-code';
-    box.textContent = '云端连接失败：' + ((e && (e.errMsg || e.message)) || '未知错误') + '。若是首次使用,请先在云开发控制台开启"匿名登录"并将 ' + location.hostname + ' 加入 Web 安全域名。';
-    document.getElementById('onb-btn').onclick = function(){ location.reload(); };
-    document.getElementById('onb-btn').textContent = '重试';
   }
+  hideMask();
+  go('onb');
+  showOnbErr('云端连接失败：' + ((lastErr && (lastErr.errMsg || lastErr.message)) || '未知错误') + '。请确认已在云开发控制台开启"匿名登录",并将 ' + location.hostname + ' 加入 Web 安全域名,然后点击重试。');
+  const btn = document.getElementById('onb-btn');
+  btn.onclick = function() { location.reload(); };
+  btn.textContent = '重试';
 })();
+function showOnbErr(msg) {
+  const box = document.getElementById('onb-err');
+  box.classList.remove('hidden');
+  box.textContent = msg;
+}
 
 // ============ 引导 ============
 let onbMode = 'create';
@@ -431,28 +451,22 @@ async function onbDone() {
   if (onbMode === 'join' && !code) return alert('请输入 Ta 的邀请码');
   showMask(onbMode === 'create' ? '创建空间...' : '加入空间...');
   try {
-    if (onbMode === 'create') {
-      const r = await callFn('createCouple', { startDate: date });
-      if (!r || !r.type) throw new Error((r && r.msg) || '创建失败');
-    } else {
-      const r = await callFn('joinCouple', { inviteCode: code });
-      if (!r || !r.type) throw new Error((r && r.msg) || '加入失败');
-    }
-    // 更新昵称
-    const ur = await callFn('getUserInfo');
-    if (ur && ur.userData && ur.userData._id) {
-      user = ur.userData;
-      await callFn('coupleUpdateDoc', { collection: 'users', docId: user._id, data: { nickname: name } });
-      user.nickname = name;
-    }
-    const cr = await callFn('getCoupleInfo');
-    couple = (cr && cr.data && cr.data.couple) || null;
+    // 一次往返完成:建档 + 建/加入空间 + 昵称
+    const r = await callFn('webOnboarding', {
+      mode: onbMode,
+      nickname: name,
+      startDate: date,
+      inviteCode: code
+    });
+    if (!r || !r.type) throw new Error((r && r.msg) || '操作失败');
+    user = r.user;
+    couple = r.couple;
     partnerJoined = !!(couple && couple.partners && couple.partners.length >= 2);
     hideMask();
     go('home');
   } catch (e) {
     hideMask();
-    errBox((e && (e.errMsg || e.message)) || '操作失败');
+    showOnbErr('操作失败：' + ((e && (e.errMsg || e.message)) || '未知错误'));
   }
 }
 
@@ -590,20 +604,13 @@ async function renderMemories() {
   }
   events.sort((a, b) => b.time - a.time);
   const visible = memFilterKey === 'all' ? events : events.filter(e => e.type === memFilterKey);
-  document.getElementById('s-check').textContent = store_countDone();
-  document.getElementById('s-plan').textContent = (await (async () => {
-    const r = await cdb.collection('datePlan').where({ coupleId: user.coupleId, status: 'done' }).count();
-    return r.total;
-  })());
-  document.getElementById('s-post').textContent = store.articles ? store.articles.length : (await cdb.collection('article').where({ coupleId: user.coupleId }).count()).total;
+  document.getElementById('s-check').textContent = events.filter(e => e.type === 'check').length;
+  document.getElementById('s-plan').textContent = events.filter(e => e.type === 'plan').length;
+  document.getElementById('s-post').textContent = events.filter(e => e.type === 'article').length;
   listEl.innerHTML = visible.map(e =>
     '<div class="tl-item"><div class="tl-dot"></div><div class="tl-date">' + e.date + '</div><div class="tl-card"><div class="tl-title">' + e.title + '</div>' + (e.sub ? '<div class="tl-sub">' + esc(e.sub) + '</div>' : '') + '</div></div>'
   ).join('') + '<div class="empty">── 已经翻到最早的回忆啦 ──</div>';
   document.getElementById('mem-empty').style.display = visible.length ? 'none' : 'block';
-}
-async function store_countDone() {
-  const r = await cdb.collection('checklistItem').where({ coupleId: user.coupleId, done: true }).count();
-  return r.total;
 }
 
 // ============ 清单 ============
