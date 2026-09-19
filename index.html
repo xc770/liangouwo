@@ -271,6 +271,7 @@
     <div class="menu">
       <div class="menu-item" onclick="copyCode()"><span class="e">💌</span>我的邀请码 <span class="arr">›</span></div>
       <div class="menu-item" onclick="exportData()"><span class="e">📦</span>导出数据(JSON)<span class="arr">›</span></div>
+      <div class="menu-item" onclick="leaveSpace()"><span class="e">💔</span>退出情侣空间<span class="arr">›</span></div>
     </div>
     <div style="text-align:center; font-size:11px; color:#d8aeb6; padding: 6px 0 20px;">恋狗窝 · 网页版(云端同步：网页与小程序数据互通)</div>
   </div>
@@ -394,7 +395,7 @@ function go(v) {
 }
 
 // ============ 启动 ============
-(async function boot() {
+async function boot() {
   showMask('连接云端...');
   let lastErr = null;
   // 自动重试 3 次,避免首次网络抖动导致卡在引导页
@@ -426,7 +427,8 @@ function go(v) {
   const btn = document.getElementById('onb-btn');
   btn.onclick = function() { location.reload(); };
   btn.textContent = '重试';
-})();
+}
+boot();
 function showOnbErr(msg) {
   const box = document.getElementById('onb-err');
   box.classList.remove('hidden');
@@ -814,6 +816,20 @@ function exportData() {
   a.href = URL.createObjectURL(blob);
   a.download = 'liangouwo-account.json';
   a.click();
+}
+async function leaveSpace() {
+  if (!confirm('退出后你将无法看到这个空间的任何数据(对方保留)。确定退出吗?')) return;
+  showMask('退出中...');
+  try {
+    const r = await callFn('leaveCouple');
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '退出失败');
+    alert('已退出情侣空间。你可以重新创建空间,或输入对方的新邀请码加入。');
+    boot();
+  } catch (e) {
+    hideMask();
+    alert('退出失败:' + ((e && (e.errMsg || e.message)) || ''));
+  }
 }
 </script>
 </body>
