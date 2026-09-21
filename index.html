@@ -362,6 +362,8 @@ async function cloudInit() {
   }
 }
 async function callFn(type, extra) {
+  // 入口页(未登录)不会经过 boot 的 cloudInit，这里兜一次，否则 capp 为空
+  if (!capp) await cloudInit();
   const payload = Object.assign({ type: type, webSession: token }, extra || {});
   let lastErr = null;
   // 20秒超时 + 失败自动重试一次,避免卡死在遮罩上
