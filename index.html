@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>恋狗窝 · 网页版</title>
-<script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.0/cloudbase.full.js"></script>
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/3.10.0/cloudbase.full.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; }
@@ -333,6 +333,7 @@ let token = localStorage.getItem('lgw_token') || '';
 let user = null;   // 用户文档(含 _id, coupleId, nickname, avatar, phone)
 let couple = null; // 空间文档(inviteCode, startDate, partners)
 let partnerJoined = false;
+let partners = []; // 同空间成员资料，由 getCoupleInfo 带回来，用于列出成员位
 
 function keepSession(newToken, newAlias) {
   token = newToken || '';
@@ -355,11 +356,21 @@ async function listDocs(collection, opts) {
 }
 
 async function cloudInit() {
+  if (typeof cloudbase === 'undefined') throw new Error('云端 SDK 脚本没加载成功，请刷新页面或检查网络');
   capp = cloudbase.init({ env: ENV });
   auth = capp.auth({ persistence: 'local' });
-  if (!auth.hasLoginState()) {
-    await auth.signInAnonymously();
+  // v3 SDK 的 hasLoginState() 返回 Promise：不 await 就永远为真，登录分支根本不会执行
+  if (!(await auth.hasLoginState())) {
+    const r = await auth.signInAnonymously();
+    // v3 登录失败不抛异常，错误放在返回值 error 里，不检查就会带着空凭据继续调函数
+    if (!r || !r.data || !r.data.user) throw new Error(authHint(r && r.error));
   }
+}
+function authHint(e) {
+  const st = (e && (e.status || e.code)) || '未知';
+  if (st === 'login_type_disabled') return '云开发控制台还没开启「匿名登录」：环境 → 登录授权 → Web 登录 → 开启匿名登录';
+  if (st === 'unreachable') return '登录服务拒绝了本站来源(HTTP 403)：请把 ' + location.hostname + ' 加入云开发控制台的 Web 安全域名';
+  return '登录失败(' + st + ')，请检查云开发控制台的匿名登录与 Web 安全域名设置';
 }
 async function callFn(type, extra) {
   // 入口页(未登录)不会经过 boot 的 cloudInit，这里兜一次，否则 capp 为空
@@ -403,6 +414,11 @@ function daysSince(ts) {
   const a = new Date(ts); a.setHours(0, 0, 0, 0);
   const b = new Date(); b.setHours(0, 0, 0, 0);
   return Math.max(Math.round((b - a) / 86400000), 1);
+}
+// 空间文档可能因 getCoupleInfo 失败而为空，这里统一给"没有相恋日"的取值
+function loveStartTs() {
+  const t = couple && couple.startDate ? new Date(couple.startDate).getTime() : NaN;
+  return isNaN(t) ? null : t;
 }
 function esc(s) { return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -459,6 +475,7 @@ function showGate(msg) {
 async function loadSpace() {
   const ci = await callFn('getCoupleInfo');
   couple = (ci && ci.data && ci.data.couple) || null;
+  partners = (ci && ci.data && ci.data.partners) || [];
   partnerJoined = !!(couple && couple.partners && couple.partners.length >= 2);
 }
 
@@ -494,7 +511,7 @@ async function boot() {
   }
   hideMask();
   switchOnbMode('login');
-  showOnbErr('进入失败：' + ((lastErr && (lastErr.errMsg || lastErr.message)) || '未知错误') + '。请确认云开发控制台已开启"匿名登录",并将 ' + location.hostname + ' 加入 Web 安全域名。');
+  showOnbErr('进入失败：' + ((lastErr && (lastErr.errMsg || lastErr.message)) || '未知错误'));
 }
 boot();
 function showOnbErr(msg) {
@@ -547,8 +564,8 @@ async function onbDone() {
 let tipItem = null, tipPool = [];
 async function renderHome() {
   document.getElementById('tb-code').textContent = couple ? (couple.inviteCode || '') : '';
-  const start = new Date(couple.startDate).getTime();
-  document.getElementById('h-days').textContent = daysSince(start);
+  const start = loveStartTs();
+  document.getElementById('h-days').textContent = start ? daysSince(start) : 0;
   await loadTip();
   await loadNextPlan();
   await renderFeed();
@@ -641,12 +658,12 @@ function memFilter(f, el) {
 async function renderMemories() {
   const listEl = document.getElementById('mem-list');
   listEl.innerHTML = '<div class="empty">加载中...</div>';
-  const start = new Date(couple.startDate).getTime();
-  document.getElementById('s-days').textContent = daysSince(start);
-  let events = [{
+  const start = loveStartTs();
+  document.getElementById('s-days').textContent = start ? daysSince(start) : 0;
+  let events = start ? [{
     type: 'love', time: start, date: fmt(start),
     title: '🐶 我们在一起啦', sub: '故事从这里开始'
-  }];
+  }] : [];
   try {
     const checks = await listDocs('checklistItem', { filter: { done: true }, limit: 20 });
     checks.forEach(i => {
@@ -878,12 +895,14 @@ function exportData() {
 }
 // ============ 空间安全 ============
 async function changePass() {
+  const current = prompt('先确认一次当前空间口令(防止是别人借了你的浏览器改口令)。');
+  if (current === null) return;
   const next = prompt('新的空间口令(至少 6 位)。改完其它设备的登录会立即失效。');
   if (next === null) return;
   if (next.length < 6) return alert('空间口令至少 6 位');
   showMask('更新口令...');
   try {
-    const r = await callFn('spaceAuth', { action: 'change', passphrase: next });
+    const r = await callFn('spaceAuth', { action: 'change', passphrase: next, oldPassphrase: current });
     hideMask();
     if (!r || !r.type) return alert((r && r.msg) || '修改失败');
     alert(r.msg || '口令已更新');
@@ -908,22 +927,25 @@ async function showSessions() {
   }
 }
 async function kickMember() {
-  const members = (couple && couple.members) || [];
-  if (!members.length) return alert('没有成员信息');
-  const text = members.map((m, i) => (i + 1) + '. ' + (m.nickname || '未命名') + (m.alias === member ? ' (本机)' : '')).join('\n');
-  const input = prompt('要移除第几个成员位?成员位移除后该设备需重新登录。\n\n' + text, '');
+  const aliases = (couple && couple.partners) || [];
+  if (!aliases.length) return alert('没有成员信息');
+  const text = aliases.map((a, i) => {
+    const p = partners.find(x => x._openid === a);
+    return (i + 1) + '. ' + ((p && p.nickname) || '未命名') + (a === member ? ' (本机)' : '');
+  }).join('\n');
+  const input = prompt('要移除第几个成员位?成员位移除后该设备需重新输入口令。\n\n' + text, '');
   if (input === null) return;
   const idx = parseInt(input, 10) - 1;
-  const target = members[idx];
+  const target = aliases[idx];
   if (!target) return alert('没有这个序号');
   showMask('移除中...');
   try {
-    const r = await callFn('spaceAuth', { action: 'removeMember', alias: target.alias });
+    const r = await callFn('spaceAuth', { action: 'removeMember', alias: target });
     hideMask();
     if (!r || !r.type) return alert((r && r.msg) || '移除失败');
     await loadSpace();
     renderMine();
-    alert('已移除成员位:' + (target.nickname || target.alias));
+    alert(r.msg || '已移除该成员位');
   } catch (e) {
     hideMask();
     alert('移除失败:' + ((e && (e.errMsg || e.message)) || ''));
