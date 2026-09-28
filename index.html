@@ -279,7 +279,7 @@
       <div class="menu-item" onclick="leaveSpace()"><span class="e">💔</span>退出情侣空间<span class="arr">›</span></div>
       <div class="menu-item" onclick="signOut()"><span class="e">🚪</span>退出登录(仅这台设备)<span class="arr">›</span></div>
     </div>
-    <div style="text-align:center; font-size:11px; color:#d8aeb6; padding: 6px 0 20px;">恋狗窝 · 网页版(云端同步：网页与小程序数据互通)</div>
+    <div style="text-align:center; font-size:11px; color:#d8aeb6; padding: 6px 0 20px;">恋狗窝 · 网页版 v3.0.4(云端同步：网页与小程序数据互通)</div>
   </div>
 
   <!-- 清单页 -->
@@ -328,6 +328,11 @@ const AUTH_FAIL = '登录已失效，请在网页版重新输入空间口令';
 let capp, auth;
 // 成员标识：沿用旧版自造 id，登录时提交给服务端认领原有数据；服务端不信任它，只用它做署名
 let member = localStorage.getItem('lgw_member') || localStorage.getItem('lgw_web_openid') || '';
+let clientId = localStorage.getItem('lgw_client_id') || '';
+if (!/^[A-Za-z0-9_-]{8,64}$/.test(clientId)) {
+  clientId = 'web_' + cryptoRandomHex(12);
+  localStorage.setItem('lgw_client_id', clientId);
+}
 // 会话令牌：由服务端在口令校验通过后签发，30 天有效，库里只存哈希
 let token = localStorage.getItem('lgw_token') || '';
 let user = null;   // 用户文档(含 _id, coupleId, nickname, avatar, phone)
@@ -354,6 +359,20 @@ async function listDocs(collection, opts) {
   if (!r || !r.type) throw new Error((r && r.msg) || '读取失败');
   return r.data || [];
 }
+async function countDocs(collection, opts) {
+  const r = await callFn('listDocs', Object.assign({ collection: collection, countOnly: true }, opts || {}));
+  if (!r || !r.type) throw new Error((r && r.msg) || '读取失败');
+  return Number(r.total) || 0;
+}
+async function listAllDocs(collection, opts) {
+  let all = [];
+  for (let skip = 0; skip <= 5000; skip += 100) {
+    const batch = await listDocs(collection, Object.assign({}, opts || {}, { skip: skip, limit: 100 }));
+    all = all.concat(batch);
+    if (batch.length < 100) break;
+  }
+  return all;
+}
 
 async function cloudInit() {
   if (typeof cloudbase === 'undefined') throw new Error('云端 SDK 脚本没加载成功，请刷新页面或检查网络');
@@ -375,10 +394,12 @@ function authHint(e) {
 async function callFn(type, extra) {
   // 入口页(未登录)不会经过 boot 的 cloudInit，这里兜一次，否则 capp 为空
   if (!capp) await cloudInit();
-  const payload = Object.assign({ type: type, webSession: token }, extra || {});
+  const payload = Object.assign({ type: type, webSession: token, clientId: clientId }, extra || {});
   let lastErr = null;
-  // 20秒超时 + 失败自动重试一次,避免卡死在遮罩上
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // 只有只读请求可以自动重试；写请求响应超时并不代表服务端没有执行。
+  const retryable = ['getUserInfo', 'getCoupleInfo', 'getAnniversary', 'listDocs'].indexOf(type) >= 0;
+  const attempts = retryable ? 2 : 1;
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       const res = await Promise.race([
         capp.callFunction({ name: 'nestFunctions', data: payload }),
@@ -392,7 +413,7 @@ async function callFn(type, extra) {
       return out;
     } catch (e) {
       lastErr = e;
-      if (attempt === 0) await new Promise(r => setTimeout(r, 600));
+      if (attempt + 1 < attempts) await new Promise(r => setTimeout(r, 600));
     }
   }
   throw lastErr;
@@ -401,6 +422,12 @@ function showMask(t) { const m = document.getElementById('mask'); m.textContent 
 function hideMask() { document.getElementById('mask').classList.add('hidden'); }
 function errBox(msg) { alert(msg); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function cryptoRandomHex(bytes) {
+  const out = new Uint8Array(bytes);
+  if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(out);
+  else for (let i = 0; i < out.length; i++) out[i] = Math.floor(Math.random() * 256);
+  return Array.from(out, b => b.toString(16).padStart(2, '0')).join('');
+}
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let c = ''; for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
@@ -420,7 +447,14 @@ function loveStartTs() {
   const t = couple && couple.startDate ? new Date(couple.startDate).getTime() : NaN;
   return isNaN(t) ? null : t;
 }
-function esc(s) { return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 const TEMPLATE = ['一起看一场日出','一起看一次日落','一起去看海','一起去看雪','一起爬山看云海','一起露营看星星','一起放一次烟花','一起去看一场演唱会','一起看一场电影首映','一起通宵看完一部剧','一起逛深夜的便利店','一起做一顿完整的晚餐','一起烤一次蛋糕','一起吃自助餐吃到扶墙出','一起打卡对方家乡的美食','一起吃一次路边摊','一起逛菜市场买菜','一起养一只宠物','一起种一盆植物并养活它','一起拼完一幅1000片拼图','一起玩一次密室逃脱','一起玩一次剧本杀','一起在游乐园坐摩天轮','一起坐一次过山车','一起手拉手进一次鬼屋','一起逛一次美术馆','一起逛一次博物馆','一起听一场音乐会','一起看一次话剧','一起看一次流星雨','一起骑车穿过一座城市','一起坐一次凌晨的火车','一起坐一次热气球','一起去看一次极光','一起泡一次温泉','一起在海边捡贝壳','一起放一次风筝','一起划一次船','一起在冬天吃热乎乎的糖炒栗子','一起淋一场雨然后马上回家','一起打一场雪仗','一起堆一个雪人','一起给对方做一次早餐','一起坚持运动21天','一起完成一次徒步','一起拍一卷胶片','一起拍一次情侣写真','一起录一段搞怪视频','一起给未来的自己写信','一起存一笔梦想基金','一起完成一次说走就走的旅行','一起去对方的城市旅行','一起回对方的母校看看','一起见彼此的好朋友','一起回家过一次年','一起布置一个共同的家','一起逛宜家假装在自己的家','一起跨年倒数','一起过一次只属于我们的情人节','一起教会对方一项新技能'];
 
@@ -627,7 +661,8 @@ async function postFeed() {
   if (!content) return alert('先写点什么吧');
   showMask('发表中...');
   try {
-    await callFn('coupleAddDoc', { collection: 'article', doc: { content: content, files: [] } });
+    const r = await callFn('coupleAddDoc', { collection: 'article', doc: { content: content, files: [] } });
+    if (!r || !r.type) throw new Error((r && r.msg) || '发表失败');
     input.value = '';
     hideMask();
     await renderFeed();
@@ -665,17 +700,25 @@ async function renderMemories() {
     title: '🐶 我们在一起啦', sub: '故事从这里开始'
   }] : [];
   try {
-    const checks = await listDocs('checklistItem', { filter: { done: true }, limit: 20 });
+    const results = await Promise.all([
+      listDocs('checklistItem', { filter: { done: true }, orderBy: 'done_time', order: 'desc', limit: 20 }),
+      listDocs('datePlan', { filter: { status: 'done' }, orderBy: 'done_time', order: 'desc', limit: 20 }),
+      listDocs('article', { orderBy: 'create_time', order: 'desc', limit: 20 }),
+      countDocs('checklistItem', { filter: { done: true } }),
+      countDocs('datePlan', { filter: { status: 'done' } }),
+      countDocs('article')
+    ]);
+    const checks = results[0];
     checks.forEach(i => {
       const t = i.done_time ? new Date(i.done_time).getTime() : Date.now();
       events.push({ type: 'check', time: t, date: fmt(t), title: '✅ 打卡了「' + i.title + '」', sub: '' });
     });
-    const plans = await listDocs('datePlan', { filter: { status: 'done' }, limit: 20 });
+    const plans = results[1];
     plans.forEach(p => {
       const t = p.done_time ? new Date(p.done_time).getTime() : new Date(p.date).getTime();
       events.push({ type: 'plan', time: t, date: fmt(t), title: '💗 完成了约会「' + p.title + '」', sub: p.place || '' });
     });
-    const arts = await listDocs('article', { limit: 20 });
+    const arts = results[2];
     arts.forEach(a => {
       const t = new Date(a.create_time).getTime();
       events.push({ type: 'article', time: t, date: fmt(t), title: '📝 写下了一条动态', sub: (a.content || '').slice(0, 40) });
@@ -686,11 +729,11 @@ async function renderMemories() {
   }
   events.sort((a, b) => b.time - a.time);
   const visible = memFilterKey === 'all' ? events : events.filter(e => e.type === memFilterKey);
-  document.getElementById('s-check').textContent = events.filter(e => e.type === 'check').length;
-  document.getElementById('s-plan').textContent = events.filter(e => e.type === 'plan').length;
-  document.getElementById('s-post').textContent = events.filter(e => e.type === 'article').length;
+    document.getElementById('s-check').textContent = results[3];
+    document.getElementById('s-plan').textContent = results[4];
+    document.getElementById('s-post').textContent = results[5];
   listEl.innerHTML = visible.map(e =>
-    '<div class="tl-item"><div class="tl-dot"></div><div class="tl-date">' + e.date + '</div><div class="tl-card"><div class="tl-title">' + e.title + '</div>' + (e.sub ? '<div class="tl-sub">' + esc(e.sub) + '</div>' : '') + '</div></div>'
+    '<div class="tl-item"><div class="tl-dot"></div><div class="tl-date">' + esc(e.date) + '</div><div class="tl-card"><div class="tl-title">' + esc(e.title) + '</div>' + (e.sub ? '<div class="tl-sub">' + esc(e.sub) + '</div>' : '') + '</div></div>'
   ).join('') + '<div class="empty">── 已经翻到最早的回忆啦 ──</div>';
   document.getElementById('mem-empty').style.display = visible.length ? 'none' : 'block';
 }
@@ -785,6 +828,10 @@ async function renderPlans() {
     listEl.innerHTML = list.map(p => {
       const dateStr = p.date ? fmt(new Date(p.date)) : '';
       let actions = '';
+      if (p.status === 'proposed' && p._openid !== member) {
+        actions = '<div class="plan-actions"><button class="btn" onclick="acceptPlan(\'' + p._id + '\')">接受</button><button class="btn ghost" onclick="rejectPlan(\'' + p._id + '\')">拒绝</button></div>';
+      }
+      if (p.status === 'proposed' && p._openid === member) actions = '<div class="pd">等待 Ta 确认</div>';
       if (p.status === 'accepted') actions = '<div class="plan-actions"><button class="btn" onclick="donePlan(\'' + p._id + '\')">标记完成</button></div>';
       if (p.status === 'done') actions = '<div class="pd">💗 完成于 ' + fmt(new Date(p.done_time)) + '</div>';
       return '<div class="plan-item"><div class="pt">' + esc(p.title) + '</div><div class="pd">' + dateStr + (p.place ? ' · ' + esc(p.place) : '') + (p.status === 'accepted' ? ' · 已约定' : '') + '</div>' + actions + '</div>';
@@ -801,7 +848,7 @@ function addPlan() {
   if (!date) return alert('请选择约会日期');
   showMask('发起中...');
   callFn('coupleAddDoc', { collection: 'datePlan', doc: {
-    title: title, date: new Date(date), place: place, status: 'accepted'
+    title: title, date: new Date(date), place: place, status: 'proposed'
   } }).then(r => {
     hideMask();
     if (!r || !r.type) return alert((r && r.msg) || '发起失败');
@@ -811,10 +858,28 @@ function addPlan() {
     renderPlans();
   }).catch(e => { hideMask(); alert('发起失败'); });
 }
+function acceptPlan(id) {
+  showMask('接受约会...');
+  callFn('coupleUpdateDoc', { collection: 'datePlan', docId: id, data: { status: 'accepted' } }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '操作失败');
+    renderPlans();
+  }).catch(e => { hideMask(); alert('操作失败'); });
+}
+function rejectPlan(id) {
+  if (!confirm('拒绝并删除这次约会提议吗?')) return;
+  showMask('处理中...');
+  callFn('coupleRemoveDoc', { collection: 'datePlan', docId: id }).then(r => {
+    hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '操作失败');
+    renderPlans();
+  }).catch(e => { hideMask(); alert('操作失败'); });
+}
 function donePlan(id) {
   showMask('处理中...');
   callFn('coupleUpdateDoc', { collection: 'datePlan', docId: id, data: { status: 'done', done_time: new Date() } }).then(r => {
     hideMask();
+    if (!r || !r.type) return alert((r && r.msg) || '操作失败');
     renderPlans();
   }).catch(e => { hideMask(); alert('操作失败'); });
 }
@@ -822,7 +887,16 @@ function donePlan(id) {
 // ============ 我的 ============
 function renderMine() {
   document.getElementById('m-name').textContent = user.nickname || '';
-  document.getElementById('m-avatar').innerHTML = user.avatar ? '<img src="' + user.avatar + '">' : '🐶';
+  const avatar = document.getElementById('m-avatar');
+  avatar.replaceChildren();
+  if (user.avatar) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = String(user.avatar);
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = '🐶';
+  }
   document.getElementById('f-nick').value = user.nickname || '';
   document.getElementById('f-start').value = couple && couple.startDate ? fmt(new Date(couple.startDate)) : '';
   document.getElementById('f-phone').value = user.phone || '';
@@ -830,6 +904,7 @@ function renderMine() {
 function setAvatar(input) {
   const file = input.files[0];
   if (!file) return;
+  if (!/^image\/(jpeg|png|gif|webp)$/i.test(file.type)) return alert('只支持 JPG、PNG、GIF 或 WebP 图片');
   if (file.size > 3 * 1024 * 1024) return alert('图片请小于 3MB');
   const reader = new FileReader();
   reader.onload = async e => {
@@ -840,7 +915,8 @@ function setAvatar(input) {
     try {
       const up = await callFn('uploadImageBase64', { coupleId: user.coupleId, prefix: 'avatar', base64: base64, ext: ext });
       if (!up || !up.type) throw new Error((up && up.msg) || '上传失败');
-      await callFn('coupleUpdateDoc', { collection: 'users', docId: user._id, data: { avatar: up.fileID } });
+      const saved = await callFn('coupleUpdateDoc', { collection: 'users', docId: user._id, data: { avatar: up.fileID } });
+      if (!saved || !saved.type) throw new Error((saved && saved.msg) || '头像资料保存失败');
       user.avatar = up.fileID;
       hideMask();
       renderMine();
@@ -886,12 +962,43 @@ function copyCode() {
   try { navigator.clipboard.writeText(code); } catch (e) {}
   alert('邀请码已复制:' + code + '\nTa 在恋狗窝小程序/网页版输入即可绑定同一个空间');
 }
-function exportData() {
-  const blob = new Blob([JSON.stringify({ user: user, couple: couple }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'liangouwo-account.json';
-  a.click();
+async function exportData() {
+  showMask('整理导出数据...');
+  try {
+    const rows = await Promise.all([
+      listAllDocs('checklistItem', { orderBy: 'create_time', order: 'asc' }),
+      listAllDocs('datePlan', { orderBy: 'create_time', order: 'asc' }),
+      listAllDocs('article', { orderBy: 'create_time', order: 'asc' }),
+      listAllDocs('articleComment', { orderBy: 'create_time', order: 'asc' }),
+      listAllDocs('configLoversBase', { orderBy: 'start_time', order: 'asc' }),
+      listAllDocs('photoAlbum', { orderBy: 'create_time', order: 'asc' }),
+      listAllDocs('photos', { orderBy: 'create_time', order: 'asc' })
+    ]);
+    const data = {
+      version: '3.0.4',
+      exportedAt: new Date().toISOString(),
+      user: user,
+      couple: couple,
+      checklist: rows[0],
+      plans: rows[1],
+      articles: rows[2],
+      comments: rows[3],
+      anniversaries: rows[4],
+      albums: rows[5],
+      photos: rows[6]
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = 'liangouwo-data-' + fmt(new Date()) + '.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    hideMask();
+  } catch (e) {
+    hideMask();
+    alert('导出失败:' + ((e && e.message) || '未知错误'));
+  }
 }
 // ============ 空间安全 ============
 async function changePass() {
