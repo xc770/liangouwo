@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>恋狗窝 · 网页版</title>
-<script src="https://static.cloudbase.net/cloudbase-js-sdk/3.10.0/cloudbase.full.js"></script>
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.28.6/cloudbase.full.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; }
@@ -378,10 +378,10 @@ async function cloudInit() {
   if (typeof cloudbase === 'undefined') throw new Error('云端 SDK 脚本没加载成功，请刷新页面或检查网络');
   capp = cloudbase.init({ env: ENV });
   auth = capp.auth({ persistence: 'local' });
-  // v3 SDK 的 hasLoginState() 返回 Promise：不 await 就永远为真，登录分支根本不会执行
+  // 兼容同步或异步登录状态实现。
   if (!(await auth.hasLoginState())) {
     const r = await auth.signInAnonymously();
-    // v3 登录失败不抛异常，错误放在返回值 error 里，不检查就会带着空凭据继续调函数
+    // 登录失败可能通过返回值携带错误，不检查会带着空凭据继续调函数。
     if (!r || !r.data || !r.data.user) throw new Error(authHint(r && r.error));
   }
 }
